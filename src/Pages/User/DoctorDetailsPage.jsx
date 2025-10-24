@@ -17,6 +17,8 @@ import {
   Stack,
   Grid,
   Paper,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
@@ -58,6 +60,10 @@ function Section({ title, children }) {
 }
 
 export default function DoctorDetailsPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+
   const { doctorId } = useParams();
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState(null);
@@ -163,91 +169,151 @@ export default function DoctorDetailsPage() {
     <Box
       sx={{
         background: `radial-gradient(1200px 600px at 10% -10%, rgba(12,41,147,0.06) 0%, rgba(12,41,147,0.0) 60%)`,
-        py: 6,
+        py: { xs: 3, md: 6 },
         px: { xs: 2, md: 6, lg: 8 },
+        minHeight: "100vh",
       }}
     >
-      {/* Header / Hero */}
+      {/* ✅ Responsive Header / Hero */}
       <Card
         sx={{
           mb: 4,
-          p: { xs: 2, md: 3 },
+          p: { xs: 2, sm: 2.5, md: 3 },
           borderRadius: 4,
           background: CARD_BG,
           border: SOFT_BORDER,
           boxShadow: "0 12px 28px rgba(12,41,147,0.08)",
+          overflow: "hidden",
         }}
       >
-        <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="center">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={{ xs: 2, sm: 2.5, md: 3 }}
+          alignItems={{ xs: "center", md: "center" }}
+          justifyContent={{ xs: "center", md: "flex-start" }}
+        >
+          {/* Avatar */}
           <Avatar
             src={doctor.photo || ""}
             alt={`Dr. ${doctor.firstName} ${doctor.lastName}`}
             sx={{
-              width: 120,
-              height: 120,
+              width: { xs: 100, sm: 110, md: 120 },
+              height: { xs: 100, sm: 110, md: 120 },
               border: "3px solid #fff",
               boxShadow: "0 10px 22px rgba(0,0,0,0.12)",
               bgcolor: ACCENT_BLUE,
-              fontSize: "2.2rem",
+              fontSize: { xs: "1.8rem", sm: "2rem", md: "2.2rem" },
               fontWeight: 800,
+              flexShrink: 0,
             }}
           >
             {!doctor.photo && getInitials()}
           </Avatar>
 
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: 0.3, color: ACCENT_BLUE }}>
+          {/* Info Section */}
+          <Box sx={{ flexGrow: 1, textAlign: { xs: "center", md: "left" }, width: { xs: "100%", md: "auto" } }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 900,
+                letterSpacing: 0.3,
+                color: ACCENT_BLUE,
+                fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2rem" },
+              }}
+            >
               Dr. {doctor.firstName} {doctor.lastName}
             </Typography>
-            <Typography variant="subtitle1" sx={{ color: "text.secondary", mt: 0.5 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                color: "text.secondary",
+                mt: 0.5,
+                fontSize: { xs: "0.9rem", md: "1rem" },
+              }}
+            >
               {doctor.department}
             </Typography>
 
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1.5 }}>
+            {/* Chips Section - Responsive */}
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              alignItems={{ xs: "center", md: "flex-start" }}
+              sx={{ mt: 1.5, flexWrap: "wrap", justifyContent: { xs: "center", md: "flex-start" } }}
+            >
               <Chip
-                icon={<StarIcon sx={{ color: "#f4e3edff" }} />}
+                icon={<StarIcon sx={{ color: "#f4e3edff", fontSize: { xs: "1rem", md: "1.2rem" } }} />}
                 label={`${doctor.rating || 4.5} • ${doctor.reviews || 0} reviews`}
                 variant="outlined"
-                sx={{ borderColor: "rgba(12,41,147,0.2)" }}
+                sx={{
+                  borderColor: "rgba(12,41,147,0.2)",
+                  fontSize: { xs: "0.75rem", md: "0.9rem" },
+                  height: { xs: "auto", md: "auto" },
+                }}
               />
               <Chip
-                icon={<AttachMoneyIcon sx={{ color: "#e60096ff" }} />}
+                icon={<AttachMoneyIcon sx={{ color: "#e60096ff", fontSize: { xs: "1rem", md: "1.2rem" } }} />}
                 label={formatPrice(doctor.consultationPrice)}
                 sx={{
                   bgcolor: "#f4e3edff",
                   color: "#e60096ff",
                   fontWeight: 700,
+                  fontSize: { xs: "0.75rem", md: "0.9rem" },
                 }}
               />
               <Chip
-                icon={<VerifiedIcon sx={{ color: doctor.status === "Active" ? "#2e7d32" : "#f57c00" }} />}
+                icon={
+                  <VerifiedIcon
+                    sx={{
+                      color: doctor.status === "Active" ? "#2e7d32" : "#f57c00",
+                      fontSize: { xs: "1rem", md: "1.2rem" },
+                    }}
+                  />
+                }
                 label={doctor.status || "N/A"}
                 variant="outlined"
-                sx={{ borderColor: "rgba(12,41,147,0.2)" }}
+                sx={{
+                  borderColor: "rgba(12,41,147,0.2)",
+                  fontSize: { xs: "0.75rem", md: "0.9rem" },
+                }}
               />
             </Stack>
           </Box>
 
-          <Stack direction="row" spacing={1}>
+          {/* Action Buttons */}
+          <Stack
+            direction={{ xs: "row", md: "column" }}
+            spacing={{ xs: 1, md: 1 }}
+            sx={{
+              justifyContent: { xs: "center", md: "flex-end" },
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
             <IconButton
               onClick={() => window.location.href = `tel:${doctor.phone}`}
               sx={{
                 border: SOFT_BORDER,
                 bgcolor: "#ffffff",
+                width: { xs: 44, md: 48 },
+                height: { xs: 44, md: 48 },
                 "&:hover": { bgcolor: ACCENT_BLUE, color: "white" },
               }}
+              title="Call Doctor"
             >
-              <PhoneIcon />
+              <PhoneIcon sx={{ fontSize: { xs: "1.2rem", md: "1.4rem" } }} />
             </IconButton>
             <IconButton
               onClick={() => window.location.href = `mailto:${doctor.email}`}
               sx={{
                 border: SOFT_BORDER,
                 bgcolor: "#ffffff",
+                width: { xs: 44, md: 48 },
+                height: { xs: 44, md: 48 },
                 "&:hover": { bgcolor: ACCENT_BLUE, color: "white" },
               }}
+              title="Email Doctor"
             >
-              <EmailIcon />
+              <EmailIcon sx={{ fontSize: { xs: "1.2rem", md: "1.4rem" } }} />
             </IconButton>
           </Stack>
         </Stack>
@@ -263,7 +329,7 @@ export default function DoctorDetailsPage() {
         }}
       >
         {/* Left – Compact info card */}
-        <Box sx={{ width: { xs: "100%", lg: "22%" }, flexShrink: 0, position: { lg: "sticky" }, top: 20 }}>
+        <Box sx={{ width: { xs: "100%", lg: "22%" }, flexShrink: 0, position: { lg: "sticky" }, top: { lg: 20 } }}>
           <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
             <Card
               sx={{
@@ -271,7 +337,7 @@ export default function DoctorDetailsPage() {
                 boxShadow: "0 10px 24px rgba(12,41,147,0.08)",
                 backgroundColor: CARD_BG,
                 border: SOFT_BORDER,
-                p: 3,
+                p: { xs: 2, md: 3 },
               }}
             >
               <Section title="Contact">
@@ -332,7 +398,7 @@ export default function DoctorDetailsPage() {
               }}
             >
               <Section title="About">
-                <Typography variant="body1" sx={{ color: "text.secondary", lineHeight: 1.85 }}>
+                <Typography variant="body1" sx={{ color: "text.secondary", lineHeight: 1.85, fontSize: { xs: "0.9rem", md: "1rem" } }}>
                   {doctor.bio || "Experienced medical professional dedicated to providing quality healthcare."}
                 </Typography>
               </Section>
@@ -341,10 +407,10 @@ export default function DoctorDetailsPage() {
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={4}>
                     <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderColor: "rgba(12,41,147,0.12)" }}>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.8rem" } }}>
                         Experience
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, fontSize: { xs: "1.1rem", md: "1.25rem" } }}>
                         {doctor.yearsOfExperience || 0} years
                       </Typography>
                     </Paper>
@@ -352,10 +418,10 @@ export default function DoctorDetailsPage() {
 
                   <Grid item xs={12} md={4}>
                     <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderColor: "rgba(12,41,147,0.12)" }}>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.8rem" } }}>
                         Institution
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, fontSize: { xs: "1.1rem", md: "1.25rem" }, lineHeight: 1.4 }}>
                         {doctor.institution || "N/A"}
                       </Typography>
                     </Paper>
@@ -365,16 +431,14 @@ export default function DoctorDetailsPage() {
 
               <Section title="Contact Information">
                 <Stack spacing={1.2}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}>
                     <strong>Email:</strong> {doctor.email}
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}>
                     <strong>Phone:</strong> {doctor.phone || "Not provided"}
                   </Typography>
                 </Stack>
               </Section>
-
-
             </Card>
           </motion.div>
 
@@ -390,7 +454,7 @@ export default function DoctorDetailsPage() {
               boxShadow: "0 12px 28px rgba(12,41,147,0.08)",
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, color: ACCENT_BLUE }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, color: ACCENT_BLUE, fontSize: { xs: "1rem", md: "1.25rem" } }}>
               Available Appointment Slots
             </Typography>
             {loadingSchedule ? (
@@ -422,14 +486,14 @@ export default function DoctorDetailsPage() {
                         onClick={() => isAvailable && handleBookSlot(s)}
                       >
                         <Stack spacing={0.5} alignItems="center">
-                          <Typography fontWeight={700} color={ACCENT_BLUE}>
+                          <Typography fontWeight={700} color={ACCENT_BLUE} sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}>
                             {s.date}
                           </Typography>
-                          <Typography fontWeight={600} color="text.primary">
+                          <Typography fontWeight={600} color="text.primary" sx={{ fontSize: { xs: "0.85rem", md: "0.95rem" } }}>
                             {s.startTime} – {s.endTime}
                           </Typography>
                           {s.notes && (
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, fontSize: { xs: "0.7rem", md: "0.75rem" } }}>
                               {s.notes}
                             </Typography>
                           )}
@@ -442,6 +506,7 @@ export default function DoctorDetailsPage() {
                             mt: 1.25,
                             width: "100%",
                             fontWeight: 700,
+                            fontSize: { xs: "0.75rem", md: "0.85rem" },
                             ...(isBooked
                               ? { bgcolor: "#ececec", color: "#555" }
                               : { bgcolor: "#afc3e6ff", color: ACCENT_BLUE }),

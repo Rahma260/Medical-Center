@@ -100,7 +100,6 @@ const Navbar = () => {
         role: "patient",
         avatar: auth.currentUser?.photoURL || null,
         userId: userId,
-
       });
     } catch (error) {
       console.error("❌ Error fetching user role:", error);
@@ -112,7 +111,6 @@ const Navbar = () => {
         role: "patient",
         avatar: auth.currentUser?.photoURL || null,
         userId: userId,
-
       });
     }
   };
@@ -184,7 +182,7 @@ const Navbar = () => {
               filter: "brightness(0) invert(1)",
             }}
           />
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
             Health Care
           </Typography>
         </Box>
@@ -345,8 +343,8 @@ const Navbar = () => {
           borderBottom: "1px solid rgba(12, 41, 147, 0.08)",
           left: 0,
           right: 0,
-          width: "100%", // ✅ Changed from 100vw
-          maxWidth: "100%", // ✅ Changed from 100vw
+          width: "100%",
+          maxWidth: "100%",
           boxSizing: "border-box",
         }}
       >
@@ -362,7 +360,7 @@ const Navbar = () => {
             boxSizing: "border-box",
           }}
         >
-          {/* Logo Section */}
+          {/* ✅ Logo Section - Improved */}
           <Box
             sx={{
               display: "flex",
@@ -370,9 +368,9 @@ const Navbar = () => {
               cursor: "pointer",
               transition: "transform 0.3s",
               "&:hover": { transform: "scale(1.02)" },
-              gap: { xs: 0.5, sm: 1 },
+              gap: { xs: 0.75, sm: 1, md: 1.5 },
               minWidth: 0,
-              maxWidth: { xs: "65%", sm: "auto" },
+              flex: 1,
             }}
             onClick={() => navigate("/")}
           >
@@ -381,24 +379,27 @@ const Navbar = () => {
               src="/images/logo.png"
               alt="Medical Center Logo"
               sx={{
-                width: { xs: 35, sm: 55, md: 100 },
-                height: { xs: 25, sm: 40, md: 65 },
+                width: { xs: 40, sm: 50, md: 55 },
+                height: { xs: 30, sm: 38, md: 42 },
                 flexShrink: 0,
               }}
             />
+
+
             <Typography
-              variant="h5"
+              variant="h6"
               sx={{
                 fontWeight: 800,
                 color: "#0c2993",
-                letterSpacing: 0.3,
-                fontSize: { xs: "0.85rem", sm: "1.1rem", md: "1.5rem" },
+                letterSpacing: 0.5,
+                fontSize: { xs: "1.3rem", sm: "1.3rem", md: "1.6rem" },
                 background: "linear-gradient(135deg, #0c2993 0%, #1a58ff 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
+                lineHeight: 1.2,
               }}
             >
               Health Care
@@ -410,7 +411,7 @@ const Navbar = () => {
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: { xs: 0.5, sm: 1, md: 2 },
+              gap: { xs: 0.75, sm: 1, md: 2 },
               flexShrink: 0,
             }}
           >
@@ -426,7 +427,7 @@ const Navbar = () => {
                   borderRadius: 2,
                   px: { xs: 1.5, sm: 2, md: 3 },
                   py: { xs: 0.75, sm: 1 },
-                  fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
+                  fontSize: { xs: "0.8rem", sm: "0.875rem", md: "1rem" },
                   boxShadow: "0 4px 12px rgba(26, 88, 255, 0.25)",
                   display: { xs: "none", sm: "inline-flex" },
                   "&:hover": {
@@ -464,6 +465,7 @@ const Navbar = () => {
           </Box>
         </Toolbar>
       </AppBar>
+
       {/* Drawer */}
       <Drawer
         anchor="right"
@@ -471,12 +473,12 @@ const Navbar = () => {
         onClose={handleDrawerToggle}
         ModalProps={{
           keepMounted: true,
-          disableScrollLock: true, // ✅ Prevent body scroll lock
+          disableScrollLock: true,
         }}
         PaperProps={{
           sx: {
             boxShadow: "-4px 0 20px rgba(12, 41, 147, 0.1)",
-            width: { xs: "85%", sm: 300 }, // ✅ Use percentage instead of vw
+            width: { xs: "85%", sm: 300 },
             maxWidth: 300,
           },
         }}

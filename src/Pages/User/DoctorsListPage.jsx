@@ -27,8 +27,10 @@ import {
 import { motion } from "framer-motion";
 import SearchIcon from "@mui/icons-material/Search";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
-import TuneIcon from "@mui/icons-material/Tune"; // ✅ NEW: Filter icon
-import CloseIcon from "@mui/icons-material/Close"; // ✅ NEW: Close icon
+import TuneIcon from "@mui/icons-material/Tune";
+import CloseIcon from "@mui/icons-material/Close";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../../Firebase/firebase";
 
@@ -132,7 +134,7 @@ const DoctorCard = ({ doctor, isFeatured, onHover }) => (
   </motion.div>
 );
 
-// ✅ NEW: Filter Panel Component
+// ✅ Filter Panel Component
 const FilterPanel = ({
   departments,
   loadingDepartments,
@@ -306,7 +308,11 @@ export default function DoctorSearchPage() {
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState("");
   const [hoveredDoctorId, setHoveredDoctorId] = useState(null);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false); // ✅ NEW: Drawer state
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  // ✅ Pagination states
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 4; // 2x2 grid on mobile, 3x2 or more on desktop
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -317,7 +323,7 @@ export default function DoctorSearchPage() {
   const [priceRange, setPriceRange] = useState([0, 500]);
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md")); // ✅ NEW: Check if mobile
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Fetch departments from Firestore
   useEffect(() => {
@@ -413,6 +419,7 @@ export default function DoctorSearchPage() {
         console.log(`Total doctors with schedules: ${doctorsWithSchedules.length}`);
         setDoctors(doctorsWithSchedules);
         setFilteredDoctors(doctorsWithSchedules);
+        setCurrentPage(0); // ✅ Reset pagination
       } catch (error) {
         console.error("Error fetching doctors:", error);
         setError("Failed to load doctors. Please try again.");
@@ -471,6 +478,7 @@ export default function DoctorSearchPage() {
     }
 
     setFilteredDoctors(filtered);
+    setCurrentPage(0); // ✅ Reset pagination when filters change
   }, [doctors, searchTerm, selectedSpecialties, gender, experience, availability, priceRange]);
 
   const handleSpecialtyChange = (specialty) => {
@@ -488,6 +496,22 @@ export default function DoctorSearchPage() {
     setGender("");
     setAvailability("");
     setPriceRange([0, 500]);
+    setCurrentPage(0); // ✅ Reset pagination
+  };
+
+  // ✅ Pagination calculations
+  const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
+  const startIndex = currentPage * itemsPerPage;
+  const paginatedDoctors = filteredDoctors.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
@@ -515,9 +539,10 @@ export default function DoctorSearchPage() {
         px: { xs: 2, md: 6 },
         py: 5,
         flexDirection: { xs: "column", md: "row" },
+        minHeight: "100vh",
       }}
     >
-      {/* ✅ NEW: Filter Button for Mobile */}
+      {/* ✅ Filter Button for Mobile */}
       {isMobile && (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" fontWeight="bold" color={TEAL_ACCENT}>
@@ -551,7 +576,7 @@ export default function DoctorSearchPage() {
           top: 20,
           alignSelf: "flex-start",
           height: "fit-content",
-          display: { xs: "none", md: "block" }, // ✅ Hide on mobile
+          display: { xs: "none", md: "block" },
         }}
       >
         <FilterPanel
@@ -572,7 +597,6 @@ export default function DoctorSearchPage() {
           clearFilters={clearFilters}
         />
       </Paper>
-
 
       <Drawer
         anchor="right"
@@ -636,17 +660,88 @@ export default function DoctorSearchPage() {
             No doctors found with your current filters. Try adjusting your search criteria.
           </Alert>
         ) : (
-          <Grid container spacing={3}>
-            {filteredDoctors.map((doctor) => (
-              <Grid item xs={12} sm={6} md={4} key={doctor.id}>
-                <DoctorCard
-                  doctor={doctor}
-                  isFeatured={hoveredDoctorId === doctor.id}
-                  onHover={setHoveredDoctorId}
-                />
-              </Grid>
-            ))}
-          </Grid>
+          <>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              {paginatedDoctors.map((doctor) => (
+                <Grid item xs={6} sm={6} md={4} key={doctor.id}>
+                  <DoctorCard
+                    doctor={doctor}
+                    isFeatured={hoveredDoctorId === doctor.id}
+                    onHover={setHoveredDoctorId}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* ✅ Pagination Controls */}
+            {totalPages > 1 && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 2,
+                  mt: 4,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  startIcon={<ChevronLeftIcon />}
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 0}
+                  sx={{
+                    color: TEAL_ACCENT,
+                    borderColor: TEAL_ACCENT,
+                    borderRadius: "10px",
+                    textTransform: "none",
+                    "&:disabled": { borderColor: "#ccc", color: "#999" },
+                  }}
+                >
+                  Previous
+                </Button>
+
+                {/* Page Indicator */}
+                <Box
+                  sx={{
+                    px: 2.5,
+                    py: 1,
+                    bgcolor: `${TEAL_ACCENT}10`,
+                    borderRadius: "10px",
+                    minWidth: "140px",
+                    textAlign: 'center',
+                    fontWeight: 600,
+                    color: TEAL_ACCENT,
+                  }}
+                >
+                  Page {currentPage + 1} of {totalPages}
+                </Box>
+
+                <Button
+                  variant="outlined"
+                  endIcon={<ChevronRightIcon />}
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages - 1}
+                  sx={{
+                    color: TEAL_ACCENT,
+                    borderColor: TEAL_ACCENT,
+                    borderRadius: "10px",
+                    textTransform: "none",
+                    "&:disabled": { borderColor: "#ccc", color: "#999" },
+                  }}
+                >
+                  Next
+                </Button>
+              </Box>
+            )}
+
+            {/* Items Info */}
+            <Box sx={{ textAlign: 'center', mt: 3 }}>
+              <Typography variant="caption" color={TEXT_SECONDARY}>
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredDoctors.length)} of {filteredDoctors.length} doctors
+              </Typography>
+            </Box>
+          </>
         )}
       </Box>
     </Box>
