@@ -12,8 +12,15 @@ import {
   Grid,
   Stack,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  IconButton,
 } from "@mui/material";
-import { MedicalInformation, Add, Edit, Delete } from "@mui/icons-material";
+import { MedicalInformation, Add, Edit, Delete, ContentCopy, Close } from "@mui/icons-material";
 import { useFirestore } from "../../hooks/useFirestore";
 import { useAlert } from "../../hooks/useAlert";
 import { useDialog } from "../../hooks/useDialog";
@@ -28,6 +35,11 @@ import StatusChip from "../../Components/dashboard/StatusChip";
 import AvatarWithInfo from "../../Components/dashboard/AvatarWithInfo";
 import DoctorDialog from "../../Components/dashboard/doctors/DoctorDialog";
 import SearchBar from "../../Components/common/SearchBar";
+import { auth } from "../../Firebase/firebase";
+import {
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 
 const Doctors = () => {
   const theme = useTheme();
@@ -40,6 +52,10 @@ const Doctors = () => {
   const { alert, showAlert, hideAlert } = useAlert();
   const { open, selectedItem, openDialog, closeDialog } = useDialog();
   const imageUpload = useImageUpload();
+
+  const [credentialsOpen, setCredentialsOpen] = React.useState(false);
+  const [doctorCredentials, setDoctorCredentials] = React.useState(null);
+  const [creatingAuth, setCreatingAuth] = React.useState(false);
 
   const departmentNames = departments.map((d) => d.name || d.id);
 
@@ -62,7 +78,7 @@ const Doctors = () => {
     handleChangeRowsPerPage,
     totalItems,
     resetPagination,
-  } = usePagination(filteredData, isMobile ? 5 : 10);
+  } = usePagination(filteredData, isMobile ? 4 : 10);
 
   useEffect(() => {
     resetPagination();
@@ -74,6 +90,62 @@ const Doctors = () => {
   const formatPrice = (price) => {
     if (!price) return "N/A";
     return `$${parseFloat(price).toFixed(2)}`;
+  };
+
+  const generateRandomPassword = (length = 12) => {
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
+
+  const createDoctorAuthAccount = async (email, firstName, lastName) => {
+    try {
+      setCreatingAuth(true);
+      const tempPassword = generateRandomPassword();
+
+      // Create user in Firebase Auth
+      await createUserWithEmailAndPassword(auth, email, tempPassword);
+
+      // Send password reset email
+      await sendPasswordResetEmail(auth, email);
+
+      // Store credentials to show to admin
+      setDoctorCredentials({
+        email,
+        tempPassword,
+        firstName,
+        lastName,
+      });
+
+      setCredentialsOpen(true);
+
+      showAlert(
+        `Authentication account created! Password reset email sent to ${email}`,
+        "success"
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Error creating auth account:", error);
+
+      if (error.code === "auth/email-already-in-use") {
+        showAlert(
+          `Email ${email} is already registered. Please use a different email.`,
+          "warning"
+        );
+      } else if (error.code === "auth/invalid-email") {
+        showAlert("Invalid email address", "error");
+      } else {
+        showAlert(`Error creating authentication account: ${error.message}`, "error");
+      }
+
+      return false;
+    } finally {
+      setCreatingAuth(false);
+    }
   };
 
   const handleSubmit = async (formData) => {
@@ -97,12 +169,27 @@ const Doctors = () => {
         : await addData(doctorData);
 
       if (result.success) {
-        showAlert(
-          `Doctor ${selectedItem ? "updated" : "added"} successfully!`,
-          "success"
-        );
-        closeDialog();
-        imageUpload.resetImage();
+        if (!selectedItem) {
+          const authCreated = await createDoctorAuthAccount(
+            formData.email,
+            formData.firstName,
+            formData.lastName
+          );
+
+          if (authCreated) {
+            showAlert(
+              `Doctor ${formData.firstName} ${formData.lastName} added successfully!`,
+              "success"
+            );
+            closeDialog();
+            imageUpload.resetImage();
+            return;
+          }
+        } else {
+          showAlert("Doctor updated successfully!", "success");
+          closeDialog();
+          imageUpload.resetImage();
+        }
       } else {
         showAlert("Failed to save doctor.", "error");
       }
@@ -123,31 +210,153 @@ const Doctors = () => {
     }
   };
 
-  // ✅ Mobile Card View - Larger, Centered, Uniform Size
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    showAlert("Copied to clipboard!", "info");
+  };
+
+  const CredentialsDialog = () => (
+    <Dialog
+      open={credentialsOpen}
+      onClose={() => setCredentialsOpen(false)}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold", color: "#0c2993" }}>
+          Doctor Authentication Created
+        </Typography>
+        <IconButton onClick={() => setCredentialsOpen(false)} size="small">
+          <Close />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ py: 3 }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          A password reset email has been sent to {doctorCredentials?.email}. The doctor can use the link to set their own password.
+        </Alert>
+
+        <Box sx={{ bgcolor: "#f5f7ff", p: 2.5, borderRadius: "12px", mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1, color: "#0c2993" }}>
+            Doctor Information:
+          </Typography>
+          <Stack spacing={1.5}>
+            <Box>
+              <Typography variant="caption" sx={{ color: "#666", display: "block" }}>
+                Name
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: "#0c2993" }}>
+                Dr. {doctorCredentials?.firstName} {doctorCredentials?.lastName}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ color: "#666", display: "block" }}>
+                Email
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: "#0c2993", wordBreak: "break-all" }}>
+                  {doctorCredentials?.email}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => copyToClipboard(doctorCredentials?.email)}
+                  sx={{ color: "#0c2993" }}
+                >
+                  <ContentCopy sx={{ fontSize: "1rem" }} />
+                </IconButton>
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ color: "#666", display: "block" }}>
+                Temporary Password
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    color: "#0c2993",
+                    wordBreak: "break-all",
+                    fontFamily: "monospace",
+                    p: 1,
+                    bgcolor: "white",
+                    borderRadius: "6px",
+                    border: "1px solid #ddd",
+                    flex: 1,
+                  }}
+                >
+                  {doctorCredentials?.tempPassword}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => copyToClipboard(doctorCredentials?.tempPassword)}
+                  sx={{ color: "#0c2993" }}
+                >
+                  <ContentCopy sx={{ fontSize: "1rem" }} />
+                </IconButton>
+              </Box>
+            </Box>
+          </Stack>
+        </Box>
+
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+            Next Steps:
+          </Typography>
+          <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
+            1. Share the email and temporary password with the doctor
+          </Typography>
+          <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
+            2. Doctor can login with these credentials at first attempt
+          </Typography>
+          <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
+            3. A password reset email has been sent to change the password
+          </Typography>
+          <Typography variant="caption" component="div">
+            4. Doctor can also use "Forgot Password" on login page
+          </Typography>
+        </Alert>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2, bgcolor: "#f9fafb" }}>
+        <Button
+          onClick={() => setCredentialsOpen(false)}
+          sx={{
+            color: "#0c2993",
+            fontWeight: 600,
+            textTransform: "none",
+          }}
+        >
+          Done
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   const MobileCardView = () => (
     <Grid
       container
-      spacing={2}
+      spacing={1.5}
       justifyContent="center"
       sx={{ width: "100%", margin: "0 auto" }}
     >
       {paginatedData.map((doctor) => (
         <Grid
           item
-          xs={12}
-          sm={10}
-          md={8}
+          xs={6}
+          sm={6}
           key={doctor.docId}
           sx={{ display: "flex", justifyContent: "center" }}
         >
           <Card
             sx={{
-              borderRadius: "16px",
+              borderRadius: "14px",
               border: "2px solid #e0e0e0",
               width: "100%",
-              maxWidth: "500px",
-              minHeight: "480px",
+              minHeight: "420px",
               transition: "all 0.3s ease",
+              display: "flex",
+              flexDirection: "column",
               "&:hover": {
                 boxShadow: "0 12px 32px rgba(12, 41, 147, 0.2)",
                 borderColor: "#0c2993",
@@ -155,8 +364,8 @@ const Doctors = () => {
               },
             }}
           >
-            <CardContent>
-              <Stack spacing={2.5} sx={{ height: "100%" }}>
+            <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", p: { xs: 1.5, sm: 2 } }}>
+              <Stack spacing={{ xs: 1.5, sm: 2 }} sx={{ height: "100%" }}>
                 {/* Doctor Avatar & Name */}
                 <Box sx={{ textAlign: "center" }}>
                   <AvatarWithInfo
@@ -164,44 +373,60 @@ const Doctors = () => {
                     initials={getInitials(doctor.firstName, doctor.lastName)}
                     primaryText={`Dr. ${doctor.firstName} ${doctor.lastName}`}
                     secondaryText={doctor.medicalLicense || "No license"}
-                    size={60}
+                    size={{ xs: 50, sm: 60 }}
                   />
                 </Box>
 
                 {/* Details */}
-                <Stack spacing={2}>
-                  <Box sx={{ bgcolor: "#f5f7ff", p: 1.5, borderRadius: "8px" }}>
-                    <Typography variant="caption" sx={{ color: "#666", display: "block", mb: 0.5 }}>
+                <Stack spacing={{ xs: 1, sm: 1.5 }}>
+                  <Box sx={{ bgcolor: "#f5f7ff", p: 1, borderRadius: "6px" }}>
+                    <Typography variant="caption" sx={{ color: "#666", display: "block", mb: 0.3, fontSize: "0.7rem" }}>
                       Email
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#0c2993", fontSize: "0.9rem" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        color: "#0c2993",
+                        fontSize: { xs: "0.75rem", sm: "0.85rem" },
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {doctor.email}
                     </Typography>
                   </Box>
 
-                  <Box sx={{ bgcolor: "#f5f7ff", p: 1.5, borderRadius: "8px" }}>
-                    <Typography variant="caption" sx={{ color: "#666", display: "block", mb: 0.5 }}>
-                      Phone
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#0c2993", fontSize: "0.9rem" }}>
-                      {doctor.phone}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                     <StatusChip
                       status={doctor.department}
                       getStatusColor={() => ({ bg: "#e3f2fd", color: "#0c2993" })}
                     />
+                  </Box>
+
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                     <Chip
-                      label={`${doctor.yearsOfExperience} years`}
+                      label={`${doctor.yearsOfExperience}y`}
                       size="small"
-                      sx={{ bgcolor: "#fce4ec", color: "#ff66b2", fontWeight: 600 }}
+                      sx={{
+                        bgcolor: "#fce4ec",
+                        color: "#ff66b2",
+                        fontWeight: 600,
+                        fontSize: "0.7rem",
+                        height: "24px",
+                      }}
                     />
                     <Chip
                       label={formatPrice(doctor.consultationPrice)}
                       size="small"
-                      sx={{ bgcolor: "#fff3e0", color: "#e65100", fontWeight: 600 }}
+                      sx={{
+                        bgcolor: "#fff3e0",
+                        color: "#e65100",
+                        fontWeight: 600,
+                        fontSize: "0.7rem",
+                        height: "24px",
+                      }}
                     />
                   </Box>
 
@@ -217,16 +442,19 @@ const Doctors = () => {
                 </Stack>
 
                 {/* Actions */}
-                <Box sx={{ display: "flex", gap: 1, mt: "auto", pt: 1 }}>
+                <Box sx={{ display: "flex", gap: 0.75, mt: "auto", pt: 1 }}>
                   <Button
                     variant="contained"
-                    startIcon={<Edit />}
+                    startIcon={<Edit sx={{ fontSize: "0.9rem" }} />}
                     onClick={() => openDialog(doctor)}
                     fullWidth
+                    size="small"
                     sx={{
                       bgcolor: "#0c2993",
                       color: "white",
                       fontWeight: 600,
+                      fontSize: "0.75rem",
+                      py: 0.75,
                       "&:hover": { bgcolor: "#061a5e" },
                     }}
                   >
@@ -234,13 +462,16 @@ const Doctors = () => {
                   </Button>
                   <Button
                     variant="outlined"
-                    startIcon={<Delete />}
+                    startIcon={<Delete sx={{ fontSize: "0.9rem" }} />}
                     onClick={() => handleDelete(doctor.docId)}
                     fullWidth
+                    size="small"
                     sx={{
                       color: "#ff66b2",
                       borderColor: "#ff66b2",
                       fontWeight: 600,
+                      fontSize: "0.75rem",
+                      py: 0.75,
                       "&:hover": { bgcolor: "#fde4f0", borderColor: "#ff66b2" },
                     }}
                   >
@@ -255,7 +486,7 @@ const Doctors = () => {
     </Grid>
   );
 
-  // ✅ Desktop Table View
+  // Desktop Table View
   const columns = [
     { label: "Doctor" },
     { label: "Email" },
@@ -335,19 +566,19 @@ const Doctors = () => {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
-      {/* ✅ Header Section with Title and Button Stacked */}
+      {/* Header Section */}
       <Box sx={{ mb: 3 }}>
         <PageHeader
           title="Doctors Management"
           icon={MedicalInformation}
         />
 
-        {/* ✅ Add Doctor Button Below Title */}
         <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => openDialog()}
+            disabled={creatingAuth}
             fullWidth={isMobile}
             sx={{
               background: "linear-gradient(90deg,#0c2993,#ff66b2)",
@@ -381,35 +612,37 @@ const Doctors = () => {
             <MobileCardView />
           </Box>
           {/* Mobile Pagination */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              gap: 1,
-              mt: 3,
-              flexWrap: "wrap",
-            }}
-          >
-            <Button
-              disabled={page === 0}
-              onClick={() => handleChangePage(null, page - 1)}
-              size="small"
-              variant="outlined"
+          {Math.ceil(totalItems / rowsPerPage) > 1 && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 1,
+                mt: 3,
+                flexWrap: "wrap",
+              }}
             >
-              Previous
-            </Button>
-            <Button disabled size="small" variant="outlined">
-              Page {page + 1} of {Math.ceil(totalItems / rowsPerPage)}
-            </Button>
-            <Button
-              disabled={page >= Math.ceil(totalItems / rowsPerPage) - 1}
-              onClick={() => handleChangePage(null, page + 1)}
-              size="small"
-              variant="outlined"
-            >
-              Next
-            </Button>
-          </Box>
+              <Button
+                disabled={page === 0}
+                onClick={() => handleChangePage(null, page - 1)}
+                size="small"
+                variant="outlined"
+              >
+                Previous
+              </Button>
+              <Button disabled size="small" variant="outlined">
+                Page {page + 1} of {Math.ceil(totalItems / rowsPerPage)}
+              </Button>
+              <Button
+                disabled={page >= Math.ceil(totalItems / rowsPerPage) - 1}
+                onClick={() => handleChangePage(null, page + 1)}
+                size="small"
+                variant="outlined"
+              >
+                Next
+              </Button>
+            </Box>
+          )}
         </>
       ) : (
         <DataTable
@@ -442,6 +675,8 @@ const Doctors = () => {
         imageUpload={imageUpload}
         showAlert={showAlert}
       />
+
+      <CredentialsDialog />
 
       <AlertSnackbar alert={alert} onClose={hideAlert} />
     </Box>
