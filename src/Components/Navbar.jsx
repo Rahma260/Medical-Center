@@ -14,6 +14,7 @@ import {
   Avatar,
   Chip,
   ListItemIcon,
+  CircularProgress,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -25,25 +26,26 @@ import {
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../Firebase/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import UserMenu from "./dashboard/layout/UserMenu"; // Import UserMenu component
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import UserMenu from "./dashboard/layout/UserMenu";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
-  // Monitor user authentication state and fetch role
+  // ✅ FIXED: Monitor user authentication state and fetch role
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
 
       if (currentUser) {
-        await fetchUserRole(currentUser.uid);
+        await fetchUserRole(currentUser.uid, currentUser.email);
       } else {
         setUserRole(null);
         setUserData(null);
@@ -52,66 +54,127 @@ const Navbar = () => {
     return () => unsubscribe();
   }, []);
 
-  const fetchUserRole = async (userId) => {
+  // ✅ FIXED: Enhanced role detection
+  const fetchUserRole = async (userId, userEmail) => {
     try {
-      console.log("Fetching role for user:", userId);
+      setLoading(true);
+      console.log("Fetching role for user:", userId, userEmail);
 
+      // ✅ First try: Check if user document ID matches userId (stored with auth UID)
       const doctorRef = doc(db, "Doctors", userId);
       const doctorSnap = await getDoc(doctorRef);
 
       if (doctorSnap.exists()) {
         const data = doctorSnap.data();
+        console.log("✅ User is a Doctor (by ID)");
         setUserRole("doctor");
         setUserData({
           name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
           initials: `${data.firstName?.[0] || ""}${data.lastName?.[0] || ""}`.toUpperCase(),
-          email: data.email || auth.currentUser?.email,
+          email: data.email || userEmail,
           role: "doctor",
           avatar: data.photo || null,
           userId: userId,
+          docId: userId, // Store the document ID
         });
+        setLoading(false);
         return;
       }
 
+      // ✅ Second try: Query Doctors by email (for doctors created before auth was linked)
+      const doctorsRef = collection(db, "Doctors");
+      const doctorQuery = query(doctorsRef, where("email", "==", userEmail));
+      const doctorQuerySnap = await getDocs(doctorQuery);
+
+      if (!doctorQuerySnap.empty) {
+        const doctorDoc = doctorQuerySnap.docs[0];
+        const data = doctorDoc.data();
+        console.log("✅ User is a Doctor (by email)");
+        setUserRole("doctor");
+        setUserData({
+          name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+          initials: `${data.firstName?.[0] || ""}${data.lastName?.[0] || ""}`.toUpperCase(),
+          email: data.email || userEmail,
+          role: "doctor",
+          avatar: data.photo || null,
+          userId: userId,
+          docId: doctorDoc.id, // Store the actual document ID
+        });
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Third try: Check Patient by ID
       const patientRef = doc(db, "Patients", userId);
       const patientSnap = await getDoc(patientRef);
 
       if (patientSnap.exists()) {
-        console.log("✅ User is a Patient");
         const data = patientSnap.data();
+        console.log("✅ User is a Patient (by ID)");
         setUserRole("patient");
         setUserData({
           name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
           initials: `${data.firstName?.[0] || ""}${data.lastName?.[0] || ""}`.toUpperCase(),
-          email: data.email || auth.currentUser?.email,
+          email: data.email || userEmail,
           role: "patient",
           avatar: data.photo || null,
           userId: userId,
+          docId: userId,
         });
+        setLoading(false);
         return;
       }
 
+      // ✅ Fourth try: Query Patients by email
+      const patientsRef = collection(db, "Patients");
+      const patientQuery = query(patientsRef, where("email", "==", userEmail));
+      const patientQuerySnap = await getDocs(patientQuery);
+
+      if (!patientQuerySnap.empty) {
+        const patientDoc = patientQuerySnap.docs[0];
+        const data = patientDoc.data();
+        console.log("✅ User is a Patient (by email)");
+        setUserRole("patient");
+        setUserData({
+          name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+          initials: `${data.firstName?.[0] || ""}${data.lastName?.[0] || ""}`.toUpperCase(),
+          email: data.email || userEmail,
+          role: "patient",
+          avatar: data.photo || null,
+          userId: userId,
+          docId: patientDoc.id,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Default: If no role found, default to patient
       console.log("⚠️ User role not found, defaulting to patient");
       setUserRole("patient");
       setUserData({
         name: auth.currentUser?.displayName || "User",
         initials: getUserInitials(),
-        email: auth.currentUser?.email,
+        email: userEmail,
         role: "patient",
         avatar: auth.currentUser?.photoURL || null,
         userId: userId,
+        docId: userId,
       });
     } catch (error) {
       console.error("❌ Error fetching user role:", error);
+      // Fallback to patient on error
       setUserRole("patient");
       setUserData({
         name: auth.currentUser?.displayName || "User",
         initials: getUserInitials(),
-        email: auth.currentUser?.email,
+        email: userEmail,
         role: "patient",
         avatar: auth.currentUser?.photoURL || null,
         userId: userId,
+        docId: userId,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -123,14 +186,14 @@ const Navbar = () => {
     navigate("/");
   };
 
-  // Navigate to profile based on role
+  // ✅ FIXED: Navigate to profile based on role
   const navigateToProfile = () => {
     if (!user || !userRole) return;
 
     if (userRole === "doctor") {
-      navigate(`/profile/${user.uid}`);
+      navigate(`/profile/${userData?.docId || user.uid}`);
     } else if (userRole === "patient") {
-      navigate(`/patient-profile/${user.uid}`);
+      navigate(`/patient-profile/${userData?.docId || user.uid}`);
     }
 
     setMobileOpen(false);
@@ -216,11 +279,11 @@ const Navbar = () => {
             >
               {userData.initials}
             </Avatar>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#0c2993" }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#0c2993", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {userData.name || "User"}
               </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {userData.email}
               </Typography>
             </Box>
@@ -244,7 +307,7 @@ const Navbar = () => {
       <Divider sx={{ mx: 2, my: 1 }} />
 
       {/* Profile Link (Mobile Only - if logged in) */}
-      {user && (
+      {user && !loading && (
         <Box sx={{ px: 2, mt: 2 }}>
           <ListItem
             onClick={navigateToProfile}
@@ -360,7 +423,7 @@ const Navbar = () => {
             boxSizing: "border-box",
           }}
         >
-          {/* ✅ Logo Section - Improved */}
+          {/* Logo Section */}
           <Box
             sx={{
               display: "flex",
@@ -384,7 +447,6 @@ const Navbar = () => {
                 flexShrink: 0,
               }}
             />
-
 
             <Typography
               variant="h6"
@@ -442,7 +504,7 @@ const Navbar = () => {
               </Button>
             ) : (
               <Box sx={{ display: { xs: "none", md: "block" } }}>
-                {userData && <UserMenu user={userData} />}
+                {userData && !loading && <UserMenu user={userData} />}
               </Box>
             )}
 
