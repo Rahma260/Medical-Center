@@ -59,7 +59,7 @@ const Navbar = () => {
       setLoading(true);
       console.log("Fetching role for user:", userId, userEmail);
 
-      // ✅ NEW: First check Users collection for role intent
+      // ✅ NEW: First check Users collection
       const userProfileRef = doc(db, "Users", userId);
       const userProfileSnap = await getDoc(userProfileRef);
 
@@ -67,13 +67,12 @@ const Navbar = () => {
         const profileData = userProfileSnap.data();
         console.log("✅ Found user profile:", profileData);
 
-        // If role is "doctor" but no Doctors document yet (hasn't completed application)
         if (profileData.role === "doctor" && profileData.userType === "doctor") {
-          console.log("✅ User is a Doctor (registered, pending application)");
+          console.log("✅ User is a Doctor (from Users collection)");
           setUserRole("doctor");
           setUserData({
-            name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ""}`.trim() : auth.currentUser?.displayName || "User",
-            initials: getInitials(profileData.firstName, profileData.lastName),
+            name: profileData.fullName || auth.currentUser?.displayName || "User",
+            initials: `${profileData.firstName?.[0] || ""}${profileData.lastName?.[0] || ""}`.toUpperCase() || "DR",
             email: profileData.email || userEmail,
             role: "doctor",
             avatar: profileData.photo || auth.currentUser?.photoURL || null,
@@ -83,15 +82,41 @@ const Navbar = () => {
           setLoading(false);
           return;
         }
+
+        if (profileData.role === "patient") {
+          console.log("✅ User is a Patient (from Users collection)");
+          setUserRole("patient");
+          setUserData({
+            name: profileData.fullName || auth.currentUser?.displayName || "User",
+            initials: `${profileData.firstName?.[0] || ""}${profileData.lastName?.[0] || ""}`.toUpperCase() || "U",
+            email: profileData.email || userEmail,
+            role: "patient",
+            avatar: profileData.photo || auth.currentUser?.photoURL || null,
+            userId: userId,
+            docId: userId,
+          });
+          setLoading(false);
+          return;
+        }
       }
 
-      // ✅ Second try: Check if user exists in Doctors collection
-      const doctorRef = doc(db, "Doctors", userId);
-      const doctorSnap = await getDoc(doctorRef);
+      // ✅ NEW: Check Admin
+      const adminRef = doc(db, "Admins", userId);
+      const adminSnap = await getDoc(adminRef);
+      if (adminSnap.exists()) {
+        console.log("✅ User is an Admin");
+        setUserRole("admin");
+        setLoading(false);
+        return;
+      }
 
-      if (doctorSnap.exists()) {
-        const data = doctorSnap.data();
-        console.log("✅ User is a Doctor (by ID)");
+      // ✅ NEW: Check doctorApplications collection (your structure)
+      const doctorAppRef = doc(db, "doctorApplications", userId);
+      const doctorAppSnap = await getDoc(doctorAppRef);
+
+      if (doctorAppSnap.exists()) {
+        const data = doctorAppSnap.data();
+        console.log("✅ User is a Doctor (from doctorApplications)");
         setUserRole("doctor");
         setUserData({
           name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
@@ -106,15 +131,20 @@ const Navbar = () => {
         return;
       }
 
-      // ✅ Third try: Query Doctors by email
-      const doctorsRef = collection(db, "Doctors");
-      const doctorQuery = query(doctorsRef, where("email", "==", userEmail));
-      const doctorQuerySnap = await getDocs(doctorQuery);
+      // Check Doctors collection (backup)
+      let doctorSnap = await getDoc(doc(db, "Doctors", userId));
 
-      if (!doctorQuerySnap.empty) {
-        const doctorDoc = doctorQuerySnap.docs[0];
-        const data = doctorDoc.data();
-        console.log("✅ User is a Doctor (by email)");
+      if (!doctorSnap.exists()) {
+        const q = query(collection(db, "Doctors"), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          doctorSnap = querySnapshot.docs[0];
+        }
+      }
+
+      if (doctorSnap && doctorSnap.exists()) {
+        const data = doctorSnap.data();
+        console.log("✅ User is a Doctor (from Doctors collection)");
         setUserRole("doctor");
         setUserData({
           name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
@@ -123,19 +153,19 @@ const Navbar = () => {
           role: "doctor",
           avatar: data.photo || null,
           userId: userId,
-          docId: doctorDoc.id,
+          docId: doctorSnap.id,
         });
         setLoading(false);
         return;
       }
 
-      // ✅ Fourth try: Check Patient by ID
+      // Check Patient by UID
       const patientRef = doc(db, "Patients", userId);
       const patientSnap = await getDoc(patientRef);
 
       if (patientSnap.exists()) {
         const data = patientSnap.data();
-        console.log("✅ User is a Patient (by ID)");
+        console.log("✅ User is a Patient (from Patients collection)");
         setUserRole("patient");
         setUserData({
           name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
@@ -150,13 +180,12 @@ const Navbar = () => {
         return;
       }
 
-      // ✅ Fifth try: Query Patients by email
-      const patientsRef = collection(db, "Patients");
-      const patientQuery = query(patientsRef, where("email", "==", userEmail));
-      const patientQuerySnap = await getDocs(patientQuery);
+      // Check Patient by email
+      const q = query(collection(db, "Patients"), where("email", "==", userEmail));
+      const querySnapshot = await getDocs(q);
 
-      if (!patientQuerySnap.empty) {
-        const patientDoc = patientQuerySnap.docs[0];
+      if (!querySnapshot.empty) {
+        const patientDoc = querySnapshot.docs[0];
         const data = patientDoc.data();
         console.log("✅ User is a Patient (by email)");
         setUserRole("patient");
@@ -173,7 +202,7 @@ const Navbar = () => {
         return;
       }
 
-      // ✅ Default: If no role found, default to patient
+      // Default to patient
       console.log("⚠️ User role not found, defaulting to patient");
       setUserRole("patient");
       setUserData({
@@ -201,7 +230,6 @@ const Navbar = () => {
       setLoading(false);
     }
   };
-
   // ✅ Helper to get initials
   const getInitials = (firstName, lastName) => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "U";

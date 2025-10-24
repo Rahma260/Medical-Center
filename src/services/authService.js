@@ -3,7 +3,16 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs
+} from "firebase/firestore";
 import { auth, db } from "../Firebase/firebase";
 
 export const authService = {
@@ -41,9 +50,34 @@ export const authService = {
     }
   },
 
-  // Check user role
+  // ✅ UPDATED: Check user role - now checks Users collection first
   getUserRole: async (userId, email) => {
     try {
+      // ✅ NEW: Check Users collection first for role intent
+      const userProfileDoc = await getDoc(doc(db, "Users", userId));
+      if (userProfileDoc.exists()) {
+        const profileData = userProfileDoc.data();
+        console.log("✅ Found user profile with role:", profileData.role);
+
+        // If doctor but not in Doctors collection yet (pending application)
+        if (profileData.role === "doctor" && profileData.userType === "doctor") {
+          return {
+            role: "doctor",
+            data: profileData,
+            id: userId,
+            isApproved: false, // Pending application
+          };
+        }
+
+        if (profileData.role === "patient") {
+          return {
+            role: "patient",
+            data: profileData,
+            id: userId,
+          };
+        }
+      }
+
       // Check Admin
       const adminDoc = await getDoc(doc(db, "Admins", userId));
       if (adminDoc.exists()) {
@@ -85,7 +119,7 @@ export const authService = {
 
       return { role: null };
     } catch (error) {
-      console.error("Error getting user role:", error);
+      console.error("❌ Error getting user role:", error);
       return { role: null, error: error.message };
     }
   },

@@ -51,7 +51,8 @@ export const useAuth = () => {
 
       return { success: true };
     } catch (err) {
-      setError("An unexpected error occurred.");
+      console.error("❌ Login error:", err);
+      setError(err.message || "An unexpected error occurred.");
       return { success: false };
     } finally {
       setIsLoading(false);
@@ -63,6 +64,7 @@ export const useAuth = () => {
     setIsLoading(true);
 
     try {
+      // ✅ Step 1: Create auth user
       const registerResult = await authService.register(formData);
 
       if (!registerResult.success) {
@@ -71,24 +73,43 @@ export const useAuth = () => {
       }
 
       const user = registerResult.user;
+      console.log("✅ Auth user created:", user.uid);
 
-      // Create user document based on role
+      // ✅ Step 2: Create Users document (NEW)
+      const usersResult = await userService.createUserProfile(user.uid, formData);
+      if (!usersResult.success) {
+        console.warn("⚠️ User profile creation failed:", usersResult.error);
+        // Don't fail here - continue anyway
+      }
+
+      // ✅ Step 3: Create patient or doctor document
       let result;
       if (formData.role === "patient") {
+        console.log("📝 Creating patient document...");
         result = await userService.createPatient(user.uid, formData);
       } else if (formData.role === "doctor") {
+        console.log("📝 Creating doctor application...");
         result = await userService.createDoctorApplication(user.uid, formData);
       }
 
-      if (result.success) {
-        navigate("/");
-        return { success: true };
-      } else {
+      if (!result.success) {
         setError(result.error);
         return { success: false };
       }
+
+      console.log("✅ User document created successfully");
+
+      // ✅ Step 4: Navigate based on role
+      if (formData.role === "doctor") {
+        navigate("/doctor-application");
+      } else {
+        navigate("/");
+      }
+
+      return { success: true };
     } catch (err) {
-      setError(err.message || "Registration failed");
+      console.error("❌ Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
       return { success: false };
     } finally {
       setIsLoading(false);
