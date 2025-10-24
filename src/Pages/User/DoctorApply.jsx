@@ -9,13 +9,17 @@ import {
   Alert,
   CircularProgress,
   Typography,
-  InputAdornment
+  InputAdornment,
+  Avatar,
+  Paper,
+  IconButton,
 } from "@mui/material";
 import {
   Person as PersonIcon,
   LocalHospital as LocalHospitalIcon,
   CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -52,9 +56,9 @@ const DoctorApplicationForm = () => {
     form,
     errors,
     loading,
-    checkingEmail, // ✅ NEW
+    checkingEmail,
     handleChange,
-    handleEmailBlur, // ✅ NEW
+    handleEmailBlur,
     handlePhotoChange,
     submitApplication,
   } = useDoctorApplication(initialFormState);
@@ -83,6 +87,23 @@ const DoctorApplicationForm = () => {
         "error"
       );
     }
+  };
+
+  //  Handle photo removal
+  const handleRemovePhoto = () => {
+    handlePhotoChange({
+      target: {
+        name: "photo",
+        value: "",
+      },
+    });
+  };
+
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    const firstName = form.firstName?.charAt(0) || "";
+    const lastName = form.lastName?.charAt(0) || "";
+    return (firstName + lastName).toUpperCase() || "DR";
   };
 
   if (loading) {
@@ -117,6 +138,93 @@ const DoctorApplicationForm = () => {
         {/* Personal Information */}
         <FormSection icon={PersonIcon} title="Personal Information">
           <Grid container spacing={2}>
+            {/* Photo Preview Section */}
+            {form.photo && (
+              <Grid item xs={12} sx={{ mb: 2 }}>
+                <Paper
+                  elevation={3}
+                  sx={{
+                    p: 2,
+                    bgcolor: "#f5f8fc",
+                    borderRadius: 3,
+                    border: "2px solid #0c2993",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, color: "#0c2993" }}
+                  >
+                    Profile Photo Preview
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      position: "relative",
+                      display: "inline-block",
+                    }}
+                  >
+                    <Avatar
+                      src={form.photo}
+                      alt={`Dr. ${form.firstName} ${form.lastName}`}
+                      sx={{
+                        width: 150,
+                        height: 150,
+                        border: "4px solid #0c2993",
+                        boxShadow: "0 6px 20px rgba(12, 41, 147, 0.2)",
+                        bgcolor: "#0c2993",
+                        fontSize: "3rem",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {getInitials()}
+                    </Avatar>
+
+                    {/* Remove Button */}
+                    <IconButton
+                      onClick={handleRemovePhoto}
+                      sx={{
+                        position: "absolute",
+                        top: -10,
+                        right: -10,
+                        bgcolor: "#ff6b6b",
+                        color: "white",
+                        width: 40,
+                        height: 40,
+                        "&:hover": {
+                          bgcolor: "#ee5a52",
+                        },
+                        boxShadow: "0 4px 12px rgba(255, 107, 107, 0.3)",
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: "1.2rem" }} />
+                    </IconButton>
+                  </Box>
+
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                      ✅ Photo uploaded successfully
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      This is how your profile photo will appear
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Grid>
+            )}
+
+            {/* Photo Upload Component */}
+            <Grid item xs={12}>
+              <PhotoUpload
+                currentPhoto={form.photo}
+                onChange={handlePhotoChange}
+                error={errors.photo}
+              />
+            </Grid>
+
             <Grid item xs={12} md={6}>
               <TextField
                 label="First Name"
@@ -146,10 +254,10 @@ const DoctorApplicationForm = () => {
                 fullWidth
                 value={form.email}
                 onChange={handleChange}
-                onBlur={handleEmailBlur} // ✅ NEW: Check email on blur
+                onBlur={handleEmailBlur}
                 error={!!errors.email}
                 helperText={errors.email}
-                disabled={!!existingApplication} // ✅ Disable if updating
+                disabled={!!existingApplication}
                 InputProps={{
                   endAdornment: checkingEmail && (
                     <InputAdornment position="end">
@@ -168,13 +276,6 @@ const DoctorApplicationForm = () => {
                 onChange={handleChange}
                 error={!!errors.phone}
                 helperText={errors.phone}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <PhotoUpload
-                currentPhoto={form.photo}
-                onChange={handlePhotoChange}
-                error={errors.photo}
               />
             </Grid>
           </Grid>
