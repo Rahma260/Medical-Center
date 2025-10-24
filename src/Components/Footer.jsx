@@ -110,7 +110,6 @@ export default function Footer() {
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {[
                   { label: "Find Doctors", link: "/doctors" },
-                  { label: "Book Appointment", link: "/book" },
                   { label: "Join as Doctor", link: "/apply" },
                   { label: "About Us", link: "/" },
                   { label: "Contact Us", link: "/" },
