@@ -26,7 +26,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../Firebase/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
 import UserMenu from "./dashboard/layout/UserMenu";
 
 const Navbar = () => {
@@ -54,13 +54,38 @@ const Navbar = () => {
     return () => unsubscribe();
   }, []);
 
-  // ✅ FIXED: Enhanced role detection
   const fetchUserRole = async (userId, userEmail) => {
     try {
       setLoading(true);
       console.log("Fetching role for user:", userId, userEmail);
 
-      // ✅ First try: Check if user document ID matches userId (stored with auth UID)
+      // ✅ NEW: First check Users collection for role intent
+      const userProfileRef = doc(db, "Users", userId);
+      const userProfileSnap = await getDoc(userProfileRef);
+
+      if (userProfileSnap.exists()) {
+        const profileData = userProfileSnap.data();
+        console.log("✅ Found user profile:", profileData);
+
+        // If role is "doctor" but no Doctors document yet (hasn't completed application)
+        if (profileData.role === "doctor" && profileData.userType === "doctor") {
+          console.log("✅ User is a Doctor (registered, pending application)");
+          setUserRole("doctor");
+          setUserData({
+            name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ""}`.trim() : auth.currentUser?.displayName || "User",
+            initials: getInitials(profileData.firstName, profileData.lastName),
+            email: profileData.email || userEmail,
+            role: "doctor",
+            avatar: profileData.photo || auth.currentUser?.photoURL || null,
+            userId: userId,
+            docId: userId,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ Second try: Check if user exists in Doctors collection
       const doctorRef = doc(db, "Doctors", userId);
       const doctorSnap = await getDoc(doctorRef);
 
@@ -75,13 +100,13 @@ const Navbar = () => {
           role: "doctor",
           avatar: data.photo || null,
           userId: userId,
-          docId: userId, // Store the document ID
+          docId: userId,
         });
         setLoading(false);
         return;
       }
 
-      // ✅ Second try: Query Doctors by email (for doctors created before auth was linked)
+      // ✅ Third try: Query Doctors by email
       const doctorsRef = collection(db, "Doctors");
       const doctorQuery = query(doctorsRef, where("email", "==", userEmail));
       const doctorQuerySnap = await getDocs(doctorQuery);
@@ -98,13 +123,13 @@ const Navbar = () => {
           role: "doctor",
           avatar: data.photo || null,
           userId: userId,
-          docId: doctorDoc.id, // Store the actual document ID
+          docId: doctorDoc.id,
         });
         setLoading(false);
         return;
       }
 
-      // ✅ Third try: Check Patient by ID
+      // ✅ Fourth try: Check Patient by ID
       const patientRef = doc(db, "Patients", userId);
       const patientSnap = await getDoc(patientRef);
 
@@ -125,7 +150,7 @@ const Navbar = () => {
         return;
       }
 
-      // ✅ Fourth try: Query Patients by email
+      // ✅ Fifth try: Query Patients by email
       const patientsRef = collection(db, "Patients");
       const patientQuery = query(patientsRef, where("email", "==", userEmail));
       const patientQuerySnap = await getDocs(patientQuery);
@@ -162,7 +187,6 @@ const Navbar = () => {
       });
     } catch (error) {
       console.error("❌ Error fetching user role:", error);
-      // Fallback to patient on error
       setUserRole("patient");
       setUserData({
         name: auth.currentUser?.displayName || "User",
@@ -178,6 +202,11 @@ const Navbar = () => {
     }
   };
 
+  // ✅ Helper to get initials
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "U";
+  };
+
   // Logout handler
   const handleLogout = async () => {
     await signOut(auth);
@@ -186,7 +215,7 @@ const Navbar = () => {
     navigate("/");
   };
 
-  // ✅ FIXED: Navigate to profile based on role
+  // ✅ Navigate to profile based on role
   const navigateToProfile = () => {
     if (!user || !userRole) return;
 
@@ -280,10 +309,28 @@ const Navbar = () => {
               {userData.initials}
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#0c2993", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 700,
+                  color: "#0c2993",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {userData.name || "User"}
               </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  display: "block",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {userData.email}
               </Typography>
             </Box>
