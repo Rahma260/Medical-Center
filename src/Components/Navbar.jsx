@@ -343,10 +343,26 @@ const Navbar = () => {
           color: "#0c2993",
           boxShadow: "0 2px 20px rgba(12, 41, 147, 0.08)",
           borderBottom: "1px solid rgba(12, 41, 147, 0.08)",
+          left: 0,
+          right: 0,
+          width: "100%", // ✅ Changed from 100vw
+          maxWidth: "100%", // ✅ Changed from 100vw
+          boxSizing: "border-box",
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between", py: 1 }}>
-          {/* Left: Logo */}
+        <Toolbar
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            py: 1,
+            px: { xs: 1, sm: 2, md: 3 },
+            minHeight: { xs: 56, sm: 64 },
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Logo Section */}
           <Box
             sx={{
               display: "flex",
@@ -354,6 +370,9 @@ const Navbar = () => {
               cursor: "pointer",
               transition: "transform 0.3s",
               "&:hover": { transform: "scale(1.02)" },
+              gap: { xs: 0.5, sm: 1 },
+              minWidth: 0,
+              maxWidth: { xs: "65%", sm: "auto" },
             }}
             onClick={() => navigate("/")}
           >
@@ -362,9 +381,9 @@ const Navbar = () => {
               src="/images/logo.png"
               alt="Medical Center Logo"
               sx={{
-                width: 100,
-                height: 65,
-                mr: 1.5,
+                width: { xs: 35, sm: 55, md: 100 },
+                height: { xs: 25, sm: 40, md: 65 },
+                flexShrink: 0,
               }}
             />
             <Typography
@@ -373,17 +392,28 @@ const Navbar = () => {
                 fontWeight: 800,
                 color: "#0c2993",
                 letterSpacing: 0.3,
+                fontSize: { xs: "0.85rem", sm: "1.1rem", md: "1.5rem" },
                 background: "linear-gradient(135deg, #0c2993 0%, #1a58ff 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               Health Care
             </Typography>
           </Box>
 
-          {/* Right: Profile / Login (Desktop & Mobile) */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {/* Right Section */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: { xs: 0.5, sm: 1, md: 2 },
+              flexShrink: 0,
+            }}
+          >
             {!user ? (
               <Button
                 variant="contained"
@@ -394,9 +424,11 @@ const Navbar = () => {
                   textTransform: "none",
                   fontWeight: 700,
                   borderRadius: 2,
-                  px: 3,
-                  py: 1,
+                  px: { xs: 1.5, sm: 2, md: 3 },
+                  py: { xs: 0.75, sm: 1 },
+                  fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
                   boxShadow: "0 4px 12px rgba(26, 88, 255, 0.25)",
+                  display: { xs: "none", sm: "inline-flex" },
                   "&:hover": {
                     background: "linear-gradient(90deg, #0a2380 0%, #154be0 100%)",
                     transform: "translateY(-2px)",
@@ -408,15 +440,11 @@ const Navbar = () => {
                 Login
               </Button>
             ) : (
-              <>
-                {/* Desktop: Use UserMenu Component */}
-                <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  {userData && <UserMenu user={userData} />}
-                </Box>
-              </>
+              <Box sx={{ display: { xs: "none", md: "block" } }}>
+                {userData && <UserMenu user={userData} />}
+              </Box>
             )}
 
-            {/* Mobile Menu Button */}
             <IconButton
               color="inherit"
               edge="end"
@@ -424,32 +452,37 @@ const Navbar = () => {
               sx={{
                 display: { md: "none" },
                 border: "2px solid #0c2993",
-                borderRadius: 2,
+                borderRadius: 1.5,
+                p: { xs: 0.75, sm: 1 },
                 "&:hover": {
                   bgcolor: "#f5f8fc",
                 },
               }}
             >
-              <MenuIcon />
+              <MenuIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
             </IconButton>
           </Box>
         </Toolbar>
-
-        {/* Drawer for Mobile */}
-        <Drawer
-          anchor="right"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          PaperProps={{
-            sx: {
-              boxShadow: "-4px 0 20px rgba(12, 41, 147, 0.1)",
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
       </AppBar>
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true,
+          disableScrollLock: true, // ✅ Prevent body scroll lock
+        }}
+        PaperProps={{
+          sx: {
+            boxShadow: "-4px 0 20px rgba(12, 41, 147, 0.1)",
+            width: { xs: "85%", sm: 300 }, // ✅ Use percentage instead of vw
+            maxWidth: 300,
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
 
       <Toolbar />
     </>

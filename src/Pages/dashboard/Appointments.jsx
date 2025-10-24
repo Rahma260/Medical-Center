@@ -1,5 +1,18 @@
 import React, { useEffect } from "react";
-import { Box, TableRow, TableCell, Typography } from "@mui/material";
+import {
+  Box,
+  TableRow,
+  TableCell,
+  Typography,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Stack,
+  Button,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import {
   Event,
   MedicalServices,
@@ -19,16 +32,17 @@ import { usePagination } from "../../hooks/usePagination";
 import SearchBar from "../../Components/common/SearchBar";
 
 const Appointments = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const { data: appointments, loading } = useFirestore("Appointments");
   const { alert, hideAlert } = useAlert();
 
-  // Search functionality
   const { searchQuery, filteredData, handleSearchChange, clearSearch } = useSearch(
     appointments,
     ["patientName", "doctorName", "department", "date", "status"]
   );
 
-  // Pagination on filtered data
   const {
     page,
     rowsPerPage,
@@ -37,9 +51,8 @@ const Appointments = () => {
     handleChangeRowsPerPage,
     totalItems,
     resetPagination,
-  } = usePagination(filteredData, 10);
+  } = usePagination(filteredData, isMobile ? 5 : 10);
 
-  // Reset pagination when search changes
   useEffect(() => {
     resetPagination();
   }, [searchQuery]);
@@ -60,6 +73,81 @@ const Appointments = () => {
     }
   };
 
+  // ✅ Mobile Card View
+  const MobileCardView = () => (
+    <Grid container spacing={2}>
+      {paginatedData.map((apt) => (
+        <Grid item xs={12} key={apt.id}>
+          <Card sx={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+            <CardContent>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: "#666" }}>
+                    Patient
+                  </Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0c2993" }}>
+                    {apt.patientName || "N/A"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Doctor
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {apt.doctorName || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Department
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {apt.department || "N/A"}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Date
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {apt.date || "N/A"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Time
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {apt.time || apt.startTime || "N/A"}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  <StatusChip
+                    status={apt.status || "Pending"}
+                    getStatusColor={getStatusColor}
+                  />
+                  <Typography variant="caption" sx={{ color: "#999" }}>
+                    {apt.createdAt?.toDate
+                      ? apt.createdAt.toDate().toLocaleDateString()
+                      : "N/A"}
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  // ✅ Desktop Table View
   const columns = [
     { label: "Patient" },
     { label: "Doctor" },
@@ -124,35 +212,69 @@ const Appointments = () => {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <PageHeader title="Appointments List" icon={Event} />
 
       <SearchBar
         value={searchQuery}
         onChange={handleSearchChange}
         onClear={clearSearch}
-        placeholder="Search appointments by patient, doctor, department, date..."
+        placeholder="Search appointments..."
       />
 
-      <DataTable
-        columns={columns}
-        data={paginatedData}
-        loading={loading}
-        emptyMessage={
-          searchQuery
-            ? `No appointments found matching "${searchQuery}"`
-            : "No appointments found."
-        }
-        emptyIcon={Event}
-        renderRow={renderRow}
-        pagination={{
-          total: totalItems,
-          rowsPerPage,
-          page,
-          onPageChange: handleChangePage,
-          onRowsPerPageChange: handleChangeRowsPerPage,
-        }}
-      />
+      {isMobile ? (
+        <>
+          <MobileCardView />
+          {/* Mobile Pagination */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 1,
+              mt: 3,
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              disabled={page === 0}
+              onClick={() => handleChangePage(null, page - 1)}
+              size="small"
+            >
+              Previous
+            </Button>
+            <Button disabled size="small">
+              Page {page + 1}
+            </Button>
+            <Button
+              disabled={page >= Math.ceil(totalItems / rowsPerPage) - 1}
+              onClick={() => handleChangePage(null, page + 1)}
+              size="small"
+            >
+              Next
+            </Button>
+          </Box>
+        </>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={paginatedData}
+          loading={loading}
+          emptyMessage={
+            searchQuery
+              ? `No appointments found matching "${searchQuery}"`
+              : "No appointments found."
+          }
+          emptyIcon={Event}
+          renderRow={renderRow}
+          pagination={{
+            total: totalItems,
+            rowsPerPage,
+            page,
+            onPageChange: handleChangePage,
+            onRowsPerPageChange: handleChangeRowsPerPage,
+          }}
+        />
+      )}
 
       <AlertSnackbar alert={alert} onClose={hideAlert} />
     </Box>

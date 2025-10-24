@@ -20,10 +20,15 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Drawer,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import SearchIcon from "@mui/icons-material/Search";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney"; // ⬅️ NEW
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import TuneIcon from "@mui/icons-material/Tune"; // ✅ NEW: Filter icon
+import CloseIcon from "@mui/icons-material/Close"; // ✅ NEW: Close icon
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../../Firebase/firebase";
 
@@ -32,13 +37,11 @@ const BACKGROUND_COLOR = "#F4F8FB";
 const BORDER_COLOR = "#E0E0E0";
 const TEXT_SECONDARY = "#6C757D";
 
-// ⬅️ Format price helper function
 const formatPrice = (price) => {
   if (!price) return "N/A";
   return `$${parseFloat(price).toFixed(2)}`;
 };
 
-// DoctorCard component with updated button onClick and price display
 const DoctorCard = ({ doctor, isFeatured, onHover }) => (
   <motion.div whileHover={{ scale: 1.04 }} transition={{ duration: 0.3 }}>
     <Card
@@ -83,7 +86,6 @@ const DoctorCard = ({ doctor, isFeatured, onHover }) => (
           {doctor.yearsOfExperience} years experience
         </Typography>
 
-        {/* ⬅️ NEW: PRICE DISPLAY */}
         <Box sx={{ mt: 2, mb: 1 }}>
           <Chip
             icon={<AttachMoneyIcon sx={{ fontSize: 16 }} />}
@@ -130,6 +132,172 @@ const DoctorCard = ({ doctor, isFeatured, onHover }) => (
   </motion.div>
 );
 
+// ✅ NEW: Filter Panel Component
+const FilterPanel = ({
+  departments,
+  loadingDepartments,
+  selectedSpecialties,
+  handleSpecialtyChange,
+  searchTerm,
+  setSearchTerm,
+  priceRange,
+  setPriceRange,
+  gender,
+  setGender,
+  availability,
+  setAvailability,
+  experience,
+  setExperience,
+  clearFilters,
+  onClose,
+}) => (
+  <Box>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Typography variant="h6" fontWeight="bold" color={TEAL_ACCENT}>
+        Find Your Doctor
+      </Typography>
+      {onClose && (
+        <IconButton onClick={onClose} sx={{ display: { md: 'none' } }}>
+          <CloseIcon />
+        </IconButton>
+      )}
+    </Box>
+
+    <TextField
+      fullWidth
+      placeholder="Search by name or specialty"
+      variant="outlined"
+      size="small"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      sx={{ mb: 3 }}
+      InputProps={{
+        endAdornment: (
+          <IconButton sx={{ color: TEAL_ACCENT }}>
+            <SearchIcon />
+          </IconButton>
+        ),
+      }}
+    />
+
+    <Divider sx={{ my: 2 }} />
+
+    {/* Specialty */}
+    <Typography fontWeight="bold" mb={1}>
+      Specialty
+    </Typography>
+    {loadingDepartments ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+        <CircularProgress size={20} />
+      </Box>
+    ) : (
+      <Box sx={{ maxHeight: 200, overflowY: 'auto', pr: 1 }}>
+        {departments.map((department) => (
+          <FormControlLabel
+            key={department}
+            control={
+              <Checkbox
+                sx={{ color: TEAL_ACCENT }}
+                checked={selectedSpecialties.includes(department)}
+                onChange={() => handleSpecialtyChange(department)}
+              />
+            }
+            label={department}
+            sx={{ display: 'block', mb: 0.5 }}
+          />
+        ))}
+      </Box>
+    )}
+
+    <Divider sx={{ my: 2 }} />
+
+    {/* Price Range Filter */}
+    <Typography fontWeight="bold" mb={1}>
+      Price Range
+    </Typography>
+    <Slider
+      value={priceRange}
+      onChange={(e, val) => setPriceRange(val)}
+      min={0}
+      max={500}
+      step={10}
+      valueLabelDisplay="auto"
+      valueLabelFormat={(value) => `$${value}`}
+      sx={{ color: TEAL_ACCENT, mb: 1 }}
+    />
+    <Typography variant="body2" color={TEXT_SECONDARY} mb={2}>
+      ${priceRange[0]} - ${priceRange[1]}
+    </Typography>
+
+    <Divider sx={{ my: 2 }} />
+
+    {/* Gender */}
+    <Typography fontWeight="bold" mb={1}>
+      Gender
+    </Typography>
+    <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+      <Select
+        value={gender}
+        onChange={(e) => setGender(e.target.value)}
+        displayEmpty
+      >
+        <MenuItem value="">All</MenuItem>
+        <MenuItem value="Male">Male</MenuItem>
+        <MenuItem value="Female">Female</MenuItem>
+      </Select>
+    </FormControl>
+
+    {/* Availability */}
+    <Typography fontWeight="bold" mb={1}>
+      Availability
+    </Typography>
+    <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+      <Select
+        value={availability}
+        onChange={(e) => setAvailability(e.target.value)}
+        displayEmpty
+      >
+        <MenuItem value="">Any</MenuItem>
+        <MenuItem value="Today">Available Today</MenuItem>
+        <MenuItem value="This Week">This Week</MenuItem>
+      </Select>
+    </FormControl>
+
+    {/* Experience */}
+    <Typography fontWeight="bold" mb={1}>
+      Minimum Experience
+    </Typography>
+    <Slider
+      value={experience}
+      onChange={(e, val) => setExperience(val)}
+      min={0}
+      max={30}
+      sx={{ color: TEAL_ACCENT, mb: 1 }}
+    />
+    <Typography variant="body2" color={TEXT_SECONDARY} mb={2}>
+      Above {experience} years
+    </Typography>
+
+    <Divider sx={{ my: 2 }} />
+
+    <Button
+      fullWidth
+      variant="outlined"
+      onClick={clearFilters}
+      sx={{
+        color: TEAL_ACCENT,
+        borderColor: TEAL_ACCENT,
+        borderRadius: "10px",
+        textTransform: "none",
+        mb: 2,
+        "&:hover": { backgroundColor: `${TEAL_ACCENT}10`, borderColor: TEAL_ACCENT },
+      }}
+    >
+      Clear All Filters
+    </Button>
+  </Box>
+);
+
 export default function DoctorSearchPage() {
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
@@ -138,6 +306,7 @@ export default function DoctorSearchPage() {
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [error, setError] = useState("");
   const [hoveredDoctorId, setHoveredDoctorId] = useState(null);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false); // ✅ NEW: Drawer state
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -145,7 +314,10 @@ export default function DoctorSearchPage() {
   const [experience, setExperience] = useState(0);
   const [gender, setGender] = useState("");
   const [availability, setAvailability] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 500]); // ⬅️ NEW: Price filter
+  const [priceRange, setPriceRange] = useState([0, 500]);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md")); // ✅ NEW: Check if mobile
 
   // Fetch departments from Firestore
   useEffect(() => {
@@ -256,7 +428,6 @@ export default function DoctorSearchPage() {
   useEffect(() => {
     let filtered = doctors;
 
-    // Search by name or specialty
     if (searchTerm) {
       filtered = filtered.filter(doctor =>
         `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -264,7 +435,6 @@ export default function DoctorSearchPage() {
       );
     }
 
-    // Filter by specialties
     if (selectedSpecialties.length > 0) {
       filtered = filtered.filter(doctor =>
         selectedSpecialties.some(specialty =>
@@ -273,25 +443,21 @@ export default function DoctorSearchPage() {
       );
     }
 
-    // Filter by gender
     if (gender) {
       filtered = filtered.filter(doctor => doctor.gender === gender);
     }
 
-    // Filter by experience
     if (experience > 0) {
       filtered = filtered.filter(doctor =>
         parseInt(doctor.yearsOfExperience || 0) >= experience
       );
     }
 
-    // ⬅️ NEW: Filter by price range
     filtered = filtered.filter(doctor => {
       const price = parseFloat(doctor.consultationPrice || 0);
       return price >= priceRange[0] && price <= priceRange[1];
     });
 
-    // Filter by availability
     if (availability === "Today") {
       const today = new Date().toISOString().split('T')[0];
       filtered = filtered.filter(doctor => doctor.nextAvailableDate === today);
@@ -321,7 +487,7 @@ export default function DoctorSearchPage() {
     setExperience(0);
     setGender("");
     setAvailability("");
-    setPriceRange([0, 500]); // ⬅️ Reset price range
+    setPriceRange([0, 500]);
   };
 
   if (loading) {
@@ -351,7 +517,27 @@ export default function DoctorSearchPage() {
         flexDirection: { xs: "column", md: "row" },
       }}
     >
-      {/* LEFT — Filters */}
+      {/* ✅ NEW: Filter Button for Mobile */}
+      {isMobile && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold" color={TEAL_ACCENT}>
+            Available Doctors
+          </Typography>
+          <IconButton
+            onClick={() => setFilterDrawerOpen(true)}
+            sx={{
+              bgcolor: TEAL_ACCENT,
+              color: 'white',
+              borderRadius: 2,
+              "&:hover": { bgcolor: "#002B7A" },
+            }}
+          >
+            <TuneIcon />
+          </IconButton>
+        </Box>
+      )}
+
+      {/* Desktop: Sticky Filters */}
       <Paper
         elevation={1}
         sx={{
@@ -365,161 +551,85 @@ export default function DoctorSearchPage() {
           top: 20,
           alignSelf: "flex-start",
           height: "fit-content",
+          display: { xs: "none", md: "block" }, // ✅ Hide on mobile
         }}
       >
-        <Typography variant="h6" fontWeight="bold" mb={2} color={TEAL_ACCENT}>
-          Find Your Doctor
-        </Typography>
-
-        <TextField
-          fullWidth
-          placeholder="Search by name or specialty"
-          variant="outlined"
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ mb: 3 }}
-          InputProps={{
-            endAdornment: (
-              <IconButton sx={{ color: TEAL_ACCENT }}>
-                <SearchIcon />
-              </IconButton>
-            ),
-          }}
+        <FilterPanel
+          departments={departments}
+          loadingDepartments={loadingDepartments}
+          selectedSpecialties={selectedSpecialties}
+          handleSpecialtyChange={handleSpecialtyChange}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          priceRange={priceRange}
+          setPriceRange={setPriceRange}
+          gender={gender}
+          setGender={setGender}
+          availability={availability}
+          setAvailability={setAvailability}
+          experience={experience}
+          setExperience={setExperience}
+          clearFilters={clearFilters}
         />
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Specialty */}
-        <Typography fontWeight="bold" mb={1}>
-          Specialty
-        </Typography>
-        {loadingDepartments ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={20} />
-          </Box>
-        ) : (
-          <Box sx={{ maxHeight: 200, overflowY: 'auto', pr: 1 }}>
-            {departments.map((department) => (
-              <FormControlLabel
-                key={department}
-                control={
-                  <Checkbox
-                    sx={{ color: TEAL_ACCENT }}
-                    checked={selectedSpecialties.includes(department)}
-                    onChange={() => handleSpecialtyChange(department)}
-                  />
-                }
-                label={department}
-                sx={{ display: 'block', mb: 0.5 }}
-              />
-            ))}
-          </Box>
-        )}
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* ⬅️ NEW: Price Range Filter */}
-        <Typography fontWeight="bold" mb={1}>
-          Price Range
-        </Typography>
-        <Slider
-          value={priceRange}
-          onChange={(e, val) => setPriceRange(val)}
-          min={0}
-          max={500}
-          step={10}
-          valueLabelDisplay="auto"
-          valueLabelFormat={(value) => `$${value}`}
-          sx={{ color: TEAL_ACCENT, mb: 1 }}
-        />
-        <Typography variant="body2" color={TEXT_SECONDARY} mb={2}>
-          ${priceRange[0]} - ${priceRange[1]}
-        </Typography>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Gender */}
-        <Typography fontWeight="bold" mb={1}>
-          Gender
-        </Typography>
-        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-          <Select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="">All</MenuItem>
-            <MenuItem value="Male">Male</MenuItem>
-            <MenuItem value="Female">Female</MenuItem>
-          </Select>
-        </FormControl>
-
-        {/* Availability */}
-        <Typography fontWeight="bold" mb={1}>
-          Availability
-        </Typography>
-        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-          <Select
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="">Any</MenuItem>
-            <MenuItem value="Today">Available Today</MenuItem>
-            <MenuItem value="This Week">This Week</MenuItem>
-          </Select>
-        </FormControl>
-
-        {/* Experience */}
-        <Typography fontWeight="bold" mb={1}>
-          Minimum Experience
-        </Typography>
-        <Slider
-          value={experience}
-          onChange={(e, val) => setExperience(val)}
-          min={0}
-          max={30}
-          sx={{ color: TEAL_ACCENT, mb: 1 }}
-        />
-        <Typography variant="body2" color={TEXT_SECONDARY} mb={2}>
-          Above {experience} years
-        </Typography>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={clearFilters}
-          sx={{
-            color: TEAL_ACCENT,
-            borderColor: TEAL_ACCENT,
-            borderRadius: "10px",
-            textTransform: "none",
-            mb: 2,
-            "&:hover": { backgroundColor: `${TEAL_ACCENT}10`, borderColor: TEAL_ACCENT },
-          }}
-        >
-          Clear All Filters
-        </Button>
       </Paper>
+
+
+      <Drawer
+        anchor="right"
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: "70%", sm: "400px" },
+            p: 3,
+            borderRadius: "20px 0 0 20px",
+          },
+        }}
+      >
+        <FilterPanel
+          departments={departments}
+          loadingDepartments={loadingDepartments}
+          selectedSpecialties={selectedSpecialties}
+          handleSpecialtyChange={handleSpecialtyChange}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          priceRange={priceRange}
+          setPriceRange={setPriceRange}
+          gender={gender}
+          setGender={setGender}
+          availability={availability}
+          setAvailability={setAvailability}
+          experience={experience}
+          setExperience={setExperience}
+          clearFilters={clearFilters}
+          onClose={() => setFilterDrawerOpen(false)}
+        />
+      </Drawer>
 
       {/* RIGHT — Doctor List */}
       <Box sx={{ flex: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography
-            variant="h4"
-            fontWeight="bold"
-            color={TEAL_ACCENT}
-            textAlign="left"
-          >
-            Available Doctors
-          </Typography>
-          <Typography variant="body1" color={TEXT_SECONDARY}>
+        {!isMobile && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography
+              variant="h4"
+              fontWeight="bold"
+              color={TEAL_ACCENT}
+              textAlign="left"
+            >
+              Available Doctors
+            </Typography>
+            <Typography variant="body1" color={TEXT_SECONDARY}>
+              {filteredDoctors.length} doctors found
+            </Typography>
+          </Box>
+        )}
+
+        {/* Mobile: Show count under button */}
+        {isMobile && (
+          <Typography variant="body1" color={TEXT_SECONDARY} mb={2}>
             {filteredDoctors.length} doctors found
           </Typography>
-        </Box>
+        )}
 
         {filteredDoctors.length === 0 ? (
           <Alert severity="info" sx={{ mb: 3 }}>

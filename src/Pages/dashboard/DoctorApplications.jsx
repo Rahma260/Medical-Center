@@ -1,5 +1,18 @@
 import React from "react";
-import { Box, TableRow, TableCell, Chip } from "@mui/material";
+import {
+  Box,
+  TableRow,
+  TableCell,
+  Chip,
+  Card,
+  CardContent,
+  Grid,
+  Stack,
+  Typography,
+  Button,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import {
   MedicalServices,
   Visibility,
@@ -23,7 +36,11 @@ import DoctorApplicationDetailsDialog from "../../Components/dashboard/applicati
 import { usePagination } from "../../hooks/usePagination";
 
 const DoctorApplications = () => {
-  const { data: applications, loading, fetchData } = useFirestore("doctorApplications");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const { data: applications, loading, fetchData } =
+    useFirestore("doctorApplications");
   const { alert, showAlert, hideAlert } = useAlert();
   const confirmDialog = useDialog();
   const viewDialog = useDialog();
@@ -35,7 +52,7 @@ const DoctorApplications = () => {
     handleChangePage,
     handleChangeRowsPerPage,
     totalItems,
-  } = usePagination(applications, 10);
+  } = usePagination(applications, isMobile ? 5 : 10);
 
   const formatPrice = (price) => {
     if (!price) return "N/A";
@@ -99,6 +116,130 @@ const DoctorApplications = () => {
     confirmDialog.closeDialog();
   };
 
+  // ✅ Mobile Card View
+  const MobileCardView = () => (
+    <Grid container spacing={2}>
+      {paginatedData.map((app) => (
+        <Grid item xs={12} key={app.id}>
+          <Card sx={{ borderRadius: "12px", border: "1px solid #e0e0e0" }}>
+            <CardContent>
+              <Stack spacing={2}>
+                {/* Doctor Info */}
+                <AvatarWithInfo
+                  src={app.photo || null}
+                  initials={getInitials(app.firstName, app.lastName)}
+                  primaryText={`Dr. ${app.firstName} ${app.lastName}`}
+                  secondaryText={`License: ${app.medicalLicense}`}
+                  size={50}
+                />
+
+                {/* Details */}
+                <Stack spacing={1.5} sx={{ fontSize: "0.9rem" }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Department
+                    </Typography>
+                    <StatusChip
+                      status={app.department || "N/A"}
+                      getStatusColor={() => ({ bg: "#e3f2fd", color: "#0c2993" })}
+                    />
+                  </Box>
+
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "#666" }}>
+                        Experience
+                      </Typography>
+                      <StatusChip
+                        status={`${app.yearsOfExperience || 0} years`}
+                        getStatusColor={() => ({ bg: "#fce4ec", color: "#ff66b2" })}
+                      />
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "#666" }}>
+                        Price
+                      </Typography>
+                      <Chip
+                        icon={<AttachMoney sx={{ fontSize: 14 }} />}
+                        label={formatPrice(app.consultationPrice)}
+                        size="small"
+                        sx={{
+                          backgroundColor: "#fff3e0",
+                          color: "#e65100",
+                          fontWeight: 600,
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#666" }}>
+                      Institution
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {app.institution || "N/A"}
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                {/* Actions */}
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Visibility />}
+                    onClick={() => viewDialog.openDialog(app)}
+                    size="small"
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      color: "#0c2993",
+                      borderColor: "#0c2993",
+                    }}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<CheckCircleOutline />}
+                    onClick={() =>
+                      confirmDialog.openDialog({ ...app, action: "accept" })
+                    }
+                    size="small"
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: "#2e7d32",
+                      "&:hover": { bgcolor: "#1b5e20" },
+                    }}
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<HighlightOff />}
+                    onClick={() =>
+                      confirmDialog.openDialog({ ...app, action: "reject" })
+                    }
+                    size="small"
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: "#c62828",
+                      "&:hover": { bgcolor: "#ad1457" },
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+
+  // ✅ Desktop Table View
   const columns = [
     { label: "Doctor" },
     { label: "Department" },
@@ -189,24 +330,58 @@ const DoctorApplications = () => {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <PageHeader title="Doctor Applications" icon={MedicalServices} />
 
-      <DataTable
-        columns={columns}
-        data={paginatedData}
-        loading={loading}
-        emptyMessage="No pending doctor applications."
-        emptyIcon={MedicalServices}
-        renderRow={renderRow}
-        pagination={{
-          total: totalItems,
-          rowsPerPage,
-          page,
-          onPageChange: handleChangePage,
-          onRowsPerPageChange: handleChangeRowsPerPage,
-        }}
-      />
+      {isMobile ? (
+        <>
+          <MobileCardView />
+          {/* Mobile Pagination */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 1,
+              mt: 3,
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              disabled={page === 0}
+              onClick={() => handleChangePage(null, page - 1)}
+              size="small"
+            >
+              Previous
+            </Button>
+            <Button disabled size="small">
+              Page {page + 1}
+            </Button>
+            <Button
+              disabled={page >= Math.ceil(totalItems / rowsPerPage) - 1}
+              onClick={() => handleChangePage(null, page + 1)}
+              size="small"
+            >
+              Next
+            </Button>
+          </Box>
+        </>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={paginatedData}
+          loading={loading}
+          emptyMessage="No pending doctor applications."
+          emptyIcon={MedicalServices}
+          renderRow={renderRow}
+          pagination={{
+            total: totalItems,
+            rowsPerPage,
+            page,
+            onPageChange: handleChangePage,
+            onRowsPerPageChange: handleChangeRowsPerPage,
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDialog.open}

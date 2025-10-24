@@ -25,13 +25,13 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 const ACCENT_BLUE = "#0c2993";
 const TEAL_ACCENT = "#0c2993";
 
-// Format price helper function
+
 const formatPrice = (price) => {
   if (!price) return "N/A";
   return `$${parseFloat(price).toFixed(2)}`;
 };
 
-// DoctorCard component
+
 const DoctorCard = ({ doctor, onHover }) => {
   const navigate = useNavigate();
 
@@ -46,14 +46,8 @@ const DoctorCard = ({ doctor, onHover }) => {
         onMouseLeave={() => onHover(null)}
         sx={{
           borderRadius: "16px",
-          border: `3px solid ${doctor.rank === 1
-              ? "#FFD700"
-              : doctor.rank === 2
-                ? "#C0C0C0"
-                : doctor.rank === 3
-                  ? "#CD7F32"
-                  : "#90CAF9"
-            }`,
+          border: "1px solid #0c2993",
+
           boxShadow: "0 6px 15px rgba(0,0,0,0.1)",
           backgroundColor: "#ffffff",
           overflow: "hidden",
@@ -68,35 +62,7 @@ const DoctorCard = ({ doctor, onHover }) => {
         }}
       >
         <Box sx={{ p: 1.5, position: "relative" }}>
-          {/* Ranking Badge */}
-          {doctor.rank <= 3 && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                zIndex: 10,
-                backgroundColor:
-                  doctor.rank === 1
-                    ? "#ffd700"
-                    : doctor.rank === 2
-                      ? "#c0c0c0"
-                      : "#cd7f32",
-                color: "white",
-                width: 35,
-                height: 35,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: "bold",
-                fontSize: "0.85rem",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              #{doctor.rank}
-            </Box>
-          )}
+
 
           <Avatar
             src={doctor.photo || ""}
@@ -248,6 +214,7 @@ export default function TopSpecialists() {
         if (doctorData.status !== "Active") continue;
 
         try {
+          // ✅ Fetch appointment count
           const appointmentsRef = collection(db, "Appointments");
           const appointmentsQuery = query(
             appointmentsRef,
@@ -256,6 +223,7 @@ export default function TopSpecialists() {
           const appointmentsSnapshot = await getDocs(appointmentsQuery);
           const appointmentCount = appointmentsSnapshot.size;
 
+          // ✅ Fetch available schedule slots
           const scheduleRef = collection(
             db,
             "Doctors",
@@ -285,20 +253,21 @@ export default function TopSpecialists() {
         }
       }
 
-      // Take top 10 doctors without sorting
-      const topTen = doctorsWithMetrics.slice(0, 10).map((doctor, index) => ({
-        ...doctor,
-        rank: index + 1,
-      }));
+      const topTen = doctorsWithMetrics
+        .sort((a, b) => b.appointmentCount - a.appointmentCount)
+        .slice(0, 10)
+        .map((doctor, index) => ({
+          ...doctor,
+          rank: index + 1,
+        }));
 
-      console.log("✅ Top doctors fetched:", topTen);
       setTopDoctors(topTen);
 
       if (topTen.length === 0) {
         setError("No active doctors found.");
       }
     } catch (error) {
-      console.error("❌ Error fetching top doctors:", error);
+      console.error("Error fetching top doctors:", error);
       setError("Failed to load top specialists. Please try again later.");
     } finally {
       setLoading(false);

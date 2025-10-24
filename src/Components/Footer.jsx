@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Grid, TextField, Button, IconButton, Divider } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import FacebookIcon from "@mui/icons-material/Facebook";
 import TwitterIcon from "@mui/icons-material/Twitter";
@@ -23,6 +24,7 @@ export default function Footer() {
         color: "white",
         pt: 8,
         pb: 3,
+        width: "100%"
       }}
     >
       <Box sx={{ px: { xs: 3, md: 8 } }}>
@@ -106,14 +108,21 @@ export default function Footer() {
                 Quick Links
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                {["About Us", "Departments", "Doctors", "Services", "Careers", "Blog"].map(
-                  (link, index) => (
+                {[
+                  { label: "Find Doctors", link: "/doctors" },
+                  { label: "Book Appointment", link: "/book" },
+                  { label: "Join as Doctor", link: "/apply" },
+                  { label: "About Us", link: "/" },
+                  { label: "Contact Us", link: "/" },
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ x: 5 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <Typography
-                      key={index}
-                      component={motion.a}
-                      whileHover={{ x: 5 }}
-                      transition={{ duration: 0.2 }}
-                      href="#"
+                      component={RouterLink}
+                      to={item.link}
                       sx={{
                         color: "rgba(255,255,255,0.8)",
                         textDecoration: "none",
@@ -123,10 +132,10 @@ export default function Footer() {
                         },
                       }}
                     >
-                      {link}
+                      {item.label}
                     </Typography>
-                  )
-                )}
+                  </motion.div>
+                ))}
               </Box>
             </motion.div>
           </Grid>
@@ -151,30 +160,34 @@ export default function Footer() {
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 {[
-                  "Emergency Care",
                   "Cardiology",
                   "Neurology",
+                  "Orthopedics",
                   "Pediatrics",
                   "Surgery",
-                  "Laboratory",
+                  "Dentistry",
                 ].map((service, index) => (
-                  <Typography
+                  <motion.div
                     key={index}
-                    component={motion.a}
                     whileHover={{ x: 5 }}
                     transition={{ duration: 0.2 }}
-                    href="#"
-                    sx={{
-                      color: "rgba(255,255,255,0.8)",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                      "&:hover": {
-                        color: LIGHT_BLUE,
-                      },
-                    }}
                   >
-                    {service}
-                  </Typography>
+                    <Typography
+                      component="a"
+                      href="#"
+                      sx={{
+                        color: "rgba(255,255,255,0.8)",
+                        textDecoration: "none",
+                        fontSize: "0.9rem",
+                        cursor: "pointer",
+                        "&:hover": {
+                          color: LIGHT_BLUE,
+                        },
+                      }}
+                    >
+                      {service}
+                    </Typography>
+                  </motion.div>
                 ))}
               </Box>
             </motion.div>
@@ -355,11 +368,15 @@ export default function Footer() {
               justifyContent: "center",
             }}
           >
-            {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((item, index) => (
+            {[
+              { label: "Privacy Policy", link: "#" },
+              { label: "Terms of Service", link: "#" },
+              { label: "Cookie Policy", link: "#" },
+            ].map((item, index) => (
               <Typography
                 key={index}
                 component="a"
-                href="#"
+                href={item.link}
                 variant="body2"
                 sx={{
                   color: "rgba(255,255,255,0.7)",
@@ -370,7 +387,7 @@ export default function Footer() {
                   },
                 }}
               >
-                {item}
+                {item.label}
               </Typography>
             ))}
           </Box>
